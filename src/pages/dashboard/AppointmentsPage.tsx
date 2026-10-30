@@ -25,6 +25,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useClinicTerms } from "@/hooks/useClinicTerms";
 import { useWaitingList } from "@/hooks/useWaitingList";
 import { useCheckInAppointment } from "@/hooks/useVisitFlow";
+import { ProviderBadge } from "@/components/dashboard/associate/ProviderBadge";
 
 const defaultChairs = ["Chair 1", "Chair 2", "Chair 3"];
 const defaultSlots = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00"];
@@ -116,6 +117,7 @@ export default function AppointmentsPage() {
     ...a,
     patientName: a.patients ? `${a.patients.first_name} ${a.patients.last_name}` : "Unknown",
     dentist: a.staff?.full_name || "Unknown",
+    providerType: (dentistList.find((d: any) => d.id === a.staff_id) as any)?.provider_type,
     time: toHHmm(a.appointment_time),
     treatment: a.treatments?.name || "N/A",
   }));
@@ -300,7 +302,7 @@ export default function AppointmentsPage() {
                                           <p className="font-medium truncate">{apt.patientName}</p>
                                         </div>
                                         <p className="opacity-75 truncate">{apt.treatment}</p>
-                                        <p className="opacity-60 text-[10px] mt-0.5">{apt.dentist}</p>
+                                        <p className="opacity-60 text-[10px] mt-0.5 flex items-center gap-1">{apt.dentist}<ProviderBadge compact type={apt.providerType} /></p>
                                         {!isDentistRole && apt.status === "scheduled" && isSameDay(currentDate, new Date()) && (
                                           queuedAppointmentIds.has(apt.id) ? (
                                             <p className="mt-1.5 text-[10px] font-semibold text-emerald-700">✓ Checked in</p>
@@ -424,7 +426,7 @@ export default function AppointmentsPage() {
                                 <span className="font-medium group-hover:text-secondary transition-colors">{apt.patientName}</span>
                               </div>
                             </td>
-                            <td className="py-3 px-4 hidden md:table-cell text-muted-foreground">{apt.dentist}</td>
+                            <td className="py-3 px-4 hidden md:table-cell text-muted-foreground"><span className="flex items-center gap-2">{apt.dentist}<ProviderBadge type={apt.providerType} /></span></td>
                             <td className="py-3 px-4 hidden md:table-cell text-muted-foreground">{apt.chair}</td>
                             <td className="py-3 px-4 text-muted-foreground">{apt.treatment}</td>
                             <td className="py-3 px-4">
