@@ -17,6 +17,9 @@ import { motion } from "framer-motion";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useClinicTerms } from "@/hooks/useClinicTerms";
 import { AssociatePayPanel } from "@/components/dashboard/associate/AssociatePayPanel";
+import { useLockPayouts } from "@/hooks/useAssociatePay";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Lock } from "lucide-react";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
@@ -41,6 +44,8 @@ export default function CommissionPayoutsPage() {
   const { data: staffBreakdown } = useStaffAllocationBreakdown();
   const createPayout = useCreateCommissionPayout();
   const markPaid = useMarkCommissionPaid();
+  const lockPayouts = useLockPayouts();
+  const [lockTarget, setLockTarget] = useState<{ id: string; label: string } | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [payDialog, setPayDialog] = useState<string | null>(null);
@@ -164,7 +169,14 @@ export default function CommissionPayoutsPage() {
                     <td className="py-3 px-4 text-right">{p.paid_amount > 0 ? formatCurrency(p.paid_amount) : "—"}</td>
                     <td className="py-3 px-4"><Badge className={`text-[10px] ${statusStyles[p.status] || ""}`}>{p.status}</Badge></td>
                     <td className="py-3 px-4 text-right">
-                      {p.status === "pending" && (
+                      {(p as any).locked_at ? (
+                        <Badge variant="outline" className="gap-1 text-[10px]"><Lock className="h-3 w-3" /> Locked</Badge>
+                      ) : p.status === "paid" ? (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setLockTarget({ id: p.id, label: `${p.staff_name} · ${p.period_start} – ${p.period_end}` })}>
+                          <Lock className="mr-1 h-3 w-3" /> Finalize &amp; Lock
+                        </Button>
+                      ) : null}
+                      {p.status === "pending" && !(p as any).locked_at && (
                         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setPayDialog(p.id); setPayForm({ amount: String(p.calculated_amount), payment_method: "bank_transfer", reference: "" }); }}>
                           <CheckCircle2 className="mr-1 h-3 w-3" /> Pay
                         </Button>
@@ -251,6 +263,23 @@ export default function CommissionPayoutsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!lockTarget} onOpenChange={(o) => !o && setLockTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalize &amp; lock this pay period?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {lockTarget?.label}. Once locked, this payout and every bill in its dates for this provider can no longer be edited or deleted. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={lockPayouts.isPending} onClick={() => lockTarget && lockPayouts.mutate([lockTarget.id], { onSuccess: () => setLockTarget(null) })}>
+              {lockPayouts.isPending ? "Locking..." : "Lock period"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
