@@ -16,7 +16,9 @@ import {
   usePayoutItems,
   usePayStatement,
 } from "@/hooks/useAssociatePay";
-import { StatementLines, StatementSummary, naira } from "@/components/dashboard/associate/PayStatementView";
+import { KpiCards, StatementLines, StatementSummary, naira, printPayStub } from "@/components/dashboard/associate/PayStatementView";
+import { associateKpis } from "@/lib/associatePay";
+import { Printer } from "lucide-react";
 
 export default function MyEarningsPage() {
   const { data: me, isLoading } = useMyStaffId();
@@ -57,7 +59,14 @@ export default function MyEarningsPage() {
               <div className="space-y-1"><Label className="text-xs">To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
             </div>
             {isFetching && <p className="text-sm text-muted-foreground">Calculating…</p>}
-            {statement && (<><StatementSummary s={statement} /><StatementLines lines={statement.lines} /></>)}
+            {statement && (<>
+              <KpiCards k={associateKpis(statement, contract.daily_minimum)} />
+              <StatementSummary s={statement} />
+              <StatementLines lines={statement.lines} />
+              <Button size="sm" variant="outline" onClick={() => printPayStub({ title: `Estimate ${from} – ${to}`, staffName: (me as any)?.full_name || "Me", lines: statement.lines, total: statement.totalPayable })}>
+                <Printer className="mr-2 h-4 w-4" /> Print / save PDF
+              </Button>
+            </>)}
             <p className="text-xs text-muted-foreground">Estimate only — your final payout is confirmed by the clinic.</p>
           </CardContent>
         </Card>
@@ -100,6 +109,9 @@ export default function MyEarningsPage() {
             <span>Total: <b>{naira(openPayout?.calculated_amount)}</b></span>
             <span>Paid: <b>{naira(openPayout?.paid_amount)}</b></span>
           </div>
+          <Button size="sm" variant="outline" className="self-start" onClick={() => openPayout && printPayStub({ title: `Statement ${openPayout.period_start} – ${openPayout.period_end}`, staffName: (me as any)?.full_name || "Me", lines: items, total: openPayout.calculated_amount, paid: openPayout.paid_amount })}>
+            <Printer className="mr-2 h-4 w-4" /> Print / save PDF
+          </Button>
         </DialogContent>
       </Dialog>
     </div>
