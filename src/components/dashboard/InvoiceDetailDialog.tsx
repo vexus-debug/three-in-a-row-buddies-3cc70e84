@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Printer, CreditCard, Loader2, Mail, MessageCircle, Building2, Phone, MapPin, Globe, Pencil, X, Save, Plus, Trash2, History, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useInvoiceItems, useUpdateInvoice } from "@/hooks/useInvoices";
+import { useInvoiceItems, useUpdateInvoice, type DentalLineFields } from "@/hooks/useInvoices";
 import { usePayments, useRecordPayment } from "@/hooks/usePayments";
 import { useClinicSettings } from "@/hooks/useClinicSettings";
 import type { InvoiceWithPatient } from "@/hooks/useInvoices";
@@ -177,7 +177,7 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
   const [isEditing, setIsEditing] = useState(false);
   const [editDiscount, setEditDiscount] = useState(0);
   const [editNotes, setEditNotes] = useState("");
-  const [editItems, setEditItems] = useState<{ id?: string; treatment_id: string | null; description: string; quantity: number; unit_price: number; line_total: number }[]>([]);
+  const [editItems, setEditItems] = useState<({ id?: string; treatment_id: string | null; description: string; quantity: number; unit_price: number; line_total: number } & DentalLineFields)[]>([]);
 
   const { data: lineItems = [], isLoading: itemsLoading } = useInvoiceItems(invoice?.id ?? null);
   const { data: payments = [], isLoading: paymentsLoading } = usePayments(invoice?.id ?? null);
@@ -188,12 +188,12 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
   const [claimOpen, setClaimOpen] = useState(false);
   const { data: claims = [] } = useInvoiceClaims(invoice?.id ?? null);
   const activeClaim = hasActiveClaim(claims);
-  const providerIds = [...new Set(lineItems.map((li) => li.provider_id).filter(Boolean))] as string[];
+  const providerIds = [...new Set(lineItems.flatMap((li: any) => [li.provider_id, li.secondary_provider_id]).filter(Boolean))] as string[];
   const { data: providers = {} } = useQuery({
     queryKey: ["invoice_providers", providerIds.join(",")],
     enabled: providerIds.length > 0,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("profiles").select("id, full_name").in("id", providerIds);
+      const { data } = await (supabase as any).from("staff").select("id, full_name").in("id", providerIds);
       const map: Record<string, string> = {};
       (data || []).forEach((p: any) => { if (p.full_name) map[p.id] = p.full_name; });
       return map;
