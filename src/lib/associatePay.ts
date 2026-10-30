@@ -124,3 +124,22 @@ export function calculatePayStatement(
     totalPayable: r2(afterLabs + topUp),
   };
 }
+
+export interface AssociateKpis {
+  netProduction: number;
+  /** Net ÷ gross production, as a whole-number percent (0 when nothing was billed). */
+  collectionsRatio: number;
+  labDeductions: number;
+  /** Earnings after lab fees minus the guaranteed draw. Negative = clinic is topping up. */
+  drawBalance: number;
+}
+
+export function associateKpis(s: PayStatement, dailyMinimum: number): AssociateKpis {
+  const guaranteed = r2((Number(dailyMinimum) || 0) * s.daysWorked);
+  return {
+    netProduction: s.netProduction,
+    collectionsRatio: s.grossProduction > 0 ? Math.round((s.netProduction / s.grossProduction) * 100) : 0,
+    labDeductions: s.labDeductions,
+    drawBalance: r2(s.commissionEarned - s.labDeductions - guaranteed),
+  };
+}

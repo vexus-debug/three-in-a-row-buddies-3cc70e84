@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Printer, CreditCard, Loader2, Mail, MessageCircle, Building2, Phone, MapPin, Globe, Pencil, X, Save, Plus, Trash2, History, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useInvoiceItems, useUpdateInvoice } from "@/hooks/useInvoices";
+import { useInvoiceItems, useUpdateInvoice, type DentalLineFields } from "@/hooks/useInvoices";
 import { usePayments, useRecordPayment } from "@/hooks/usePayments";
 import { useClinicSettings } from "@/hooks/useClinicSettings";
 import type { InvoiceWithPatient } from "@/hooks/useInvoices";
@@ -177,7 +177,7 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
   const [isEditing, setIsEditing] = useState(false);
   const [editDiscount, setEditDiscount] = useState(0);
   const [editNotes, setEditNotes] = useState("");
-  const [editItems, setEditItems] = useState<{ id?: string; treatment_id: string | null; description: string; quantity: number; unit_price: number; line_total: number }[]>([]);
+  const [editItems, setEditItems] = useState<({ id?: string; treatment_id: string | null; description: string; quantity: number; unit_price: number; line_total: number } & DentalLineFields)[]>([]);
 
   const { data: lineItems = [], isLoading: itemsLoading } = useInvoiceItems(invoice?.id ?? null);
   const { data: payments = [], isLoading: paymentsLoading } = usePayments(invoice?.id ?? null);
@@ -188,12 +188,12 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
   const [claimOpen, setClaimOpen] = useState(false);
   const { data: claims = [] } = useInvoiceClaims(invoice?.id ?? null);
   const activeClaim = hasActiveClaim(claims);
-  const providerIds = [...new Set(lineItems.map((li) => li.provider_id).filter(Boolean))] as string[];
+  const providerIds = [...new Set(lineItems.flatMap((li: any) => [li.provider_id, li.secondary_provider_id]).filter(Boolean))] as string[];
   const { data: providers = {} } = useQuery({
     queryKey: ["invoice_providers", providerIds.join(",")],
     enabled: providerIds.length > 0,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("profiles").select("id, full_name").in("id", providerIds);
+      const { data } = await (supabase as any).from("staff").select("id, full_name").in("id", providerIds);
       const map: Record<string, string> = {};
       (data || []).forEach((p: any) => { if (p.full_name) map[p.id] = p.full_name; });
       return map;
@@ -207,7 +207,7 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
   const startEditing = () => {
     setEditDiscount(invoice.discount_percent);
     setEditNotes(invoice.notes || "");
-    setEditItems(lineItems.map(li => ({ id: li.id, treatment_id: li.treatment_id, description: li.description, quantity: li.quantity, unit_price: li.unit_price, line_total: li.line_total })));
+    setEditItems(lineItems.map((li: any) => ({ id: li.id, treatment_id: li.treatment_id, description: li.description, quantity: li.quantity, unit_price: li.unit_price, line_total: li.line_total, tooth_number: li.tooth_number, surfaces: li.surfaces, cdt_code: li.cdt_code, provider_id: li.provider_id, secondary_provider_id: li.secondary_provider_id, split_ratio: li.split_ratio })));
     setIsEditing(true);
   };
 
@@ -413,14 +413,17 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
                     {lineItems.map((item) => {
                       const meta = dentalLineMeta(item);
                       const provider = item.provider_id ? providers[item.provider_id] : null;
+                      const coProvider = (item as any).secondary_provider_id ? providers[(item as any).secondary_provider_id] : null;
+                      const split = Number((item as any).split_ratio ?? 100);
                       return (
                       <tr key={item.id} className="border-t border-border/50">
                         <td className="py-2.5 px-3 font-medium">
                           {item.description}
-                          {(meta || provider) && (
+                          {(meta || provider || coProvider) && (
                             <div className="mt-0.5 flex flex-wrap gap-1.5 text-[10px] font-normal text-muted-foreground">
                               {meta && <span className="rounded bg-muted px-1.5 py-0.5 font-mono">{meta}</span>}
-                              {provider && <span>Dr. {provider}</span>}
+                              {provider && <span>Dr. {provider}{coProvider ? ` ${split}%` : ""}</span>}
+                              {coProvider && <span>· Dr. {coProvider} {100 - split}%</span>}
                             </div>
                           )}
                         </td>

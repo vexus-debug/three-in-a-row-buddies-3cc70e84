@@ -13,6 +13,21 @@ export interface UpdateEntry {
 
 export const updates: UpdateEntry[] = [
   {
+    version: "v2.21.0",
+    date: "October 30, 2026",
+    title: "Associate workflow: chairs, splits, locked pay periods",
+    kind: "feature",
+    items: [
+      { kind: "feature", text: "Set provider type and allowed chairs when adding a new dentist, not only when editing." },
+      { kind: "feature", text: "Associate and Locum badges now show next to dentists on the appointments calendar and list." },
+      { kind: "feature", text: "Paid commission payouts can be finalized and locked, freezing that period's bills from later edits." },
+      { kind: "feature", text: "My Earnings shows net production, collections ratio, lab deductions and draw balance, plus a split % column." },
+      { kind: "feature", text: "Print or save any pay statement as a PDF." },
+      { kind: "fix", text: "Editing an invoice no longer wipes tooth, code, provider or split details on its lines." },
+      { kind: "fix", text: "Invoices now show the correct dentist names, including the co-provider and their share." },
+    ],
+  },
+  {
     version: "v2.20.0",
     date: "October 30, 2026",
     title: "Associate dentist pay",

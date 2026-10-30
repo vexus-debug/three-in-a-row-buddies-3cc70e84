@@ -12,6 +12,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { PROVIDER_TYPES } from "@/components/dashboard/associate/ProviderBadge";
+import { useClinicChairs } from "@/hooks/useClinicChairs";
 
 
 interface AddStaffDialogProps {
@@ -32,7 +34,10 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
   const isLab = clinicType === "dental_lab";
   const defaultRole = isLab ? "lab_technician" : "dentist";
   const roles = [...(canAppointAdmin ? ["admin"] : []), ...(canAppointManager ? ["manager"] : []), ...getStaffRoles(clinicType)];
-  const [form, setForm] = useState({ full_name: "", role: defaultRole, phone: "", email: "", specialty: "" });
+  const [form, setForm] = useState({ full_name: "", role: defaultRole, phone: "", email: "", specialty: "", provider_type: "in_house", allowed_chairs: [] as string[] });
+  const { data: chairRows = [] } = useClinicChairs();
+  const chairNames: string[] = (chairRows as any[]).length ? (chairRows as any[]).map((c) => c.name) : ["Chair 1", "Chair 2", "Chair 3"];
+  const isClinical = !isLab && ["dentist", "hygienist", "doctor", "specialist", "orthodontist", "surgeon"].includes(form.role);
   useEffect(() => { if (open && !roles.includes(form.role)) setForm((f) => ({ ...f, role: defaultRole })); }, [open, isLab]);
   const [createAccount, setCreateAccount] = useState(false);
   const [password, setPassword] = useState("");
@@ -53,7 +58,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     setIsSubmitting(true);
     try {
       // Create the staff record first
-      const staffData = await createStaff.mutateAsync(form);
+      const staffData = await createStaff.mutateAsync(isClinical ? form : { ...form, provider_type: "in_house", allowed_chairs: [] });
 
       // If creating an account, call the edge function
       if (createAccount && form.email.trim() && password.trim()) {
@@ -82,7 +87,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
       }
 
       onOpenChange(false);
-      setForm({ full_name: "", role: defaultRole, phone: "", email: "", specialty: "" });
+      setForm({ full_name: "", role: defaultRole, phone: "", email: "", specialty: "", provider_type: "in_house", allowed_chairs: [] });
       setPassword("");
       setCreateAccount(false);
     } catch (error: any) {
@@ -132,6 +137,36 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
               <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="staff@email.com" />
             </div>
           </div>
+
+          {isClinical && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Provider type</Label>
+                <Select value={form.provider_type} onValueChange={(v) => setForm({ ...form, provider_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{PROVIDER_TYPES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Allowed chairs <span className="text-muted-foreground">(none = any)</span></Label>
+                <div className="flex flex-wrap gap-1">
+                  {chairNames.map((c) => {
+                    const on = form.allowed_chairs.includes(c);
+                    return (
+                      <button key={c} type="button" aria-pressed={on}
+                        onClick={() => setForm({ ...form, allowed_chairs: on ? form.allowed_chairs.filter((x) => x !== c) : [...form.allowed_chairs, c] })}
+                        className={`rounded-md border px-2 py-1 text-[11px] font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground"}`}>
+                        {c}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {(form.provider_type === "associate" || form.provider_type === "locum") && (
+                <p className="col-span-2 text-[11px] text-muted-foreground">After saving, open this person and use the Contract tab to set commission, lab fee share and daily draw.</p>
+              )}
+            </div>
+          )}
 
           {/* Login account section */}
           <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
