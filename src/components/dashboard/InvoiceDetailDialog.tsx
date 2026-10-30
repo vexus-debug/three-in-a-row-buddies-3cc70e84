@@ -207,7 +207,7 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
   const startEditing = () => {
     setEditDiscount(invoice.discount_percent);
     setEditNotes(invoice.notes || "");
-    setEditItems(lineItems.map(li => ({ id: li.id, treatment_id: li.treatment_id, description: li.description, quantity: li.quantity, unit_price: li.unit_price, line_total: li.line_total })));
+    setEditItems(lineItems.map((li: any) => ({ id: li.id, treatment_id: li.treatment_id, description: li.description, quantity: li.quantity, unit_price: li.unit_price, line_total: li.line_total, tooth_number: li.tooth_number, surfaces: li.surfaces, cdt_code: li.cdt_code, provider_id: li.provider_id, secondary_provider_id: li.secondary_provider_id, split_ratio: li.split_ratio })));
     setIsEditing(true);
   };
 
@@ -413,14 +413,17 @@ export function InvoiceDetailDialog({ open, onOpenChange, invoice }: InvoiceDeta
                     {lineItems.map((item) => {
                       const meta = dentalLineMeta(item);
                       const provider = item.provider_id ? providers[item.provider_id] : null;
+                      const coProvider = (item as any).secondary_provider_id ? providers[(item as any).secondary_provider_id] : null;
+                      const split = Number((item as any).split_ratio ?? 100);
                       return (
                       <tr key={item.id} className="border-t border-border/50">
                         <td className="py-2.5 px-3 font-medium">
                           {item.description}
-                          {(meta || provider) && (
+                          {(meta || provider || coProvider) && (
                             <div className="mt-0.5 flex flex-wrap gap-1.5 text-[10px] font-normal text-muted-foreground">
                               {meta && <span className="rounded bg-muted px-1.5 py-0.5 font-mono">{meta}</span>}
-                              {provider && <span>Dr. {provider}</span>}
+                              {provider && <span>Dr. {provider}{coProvider ? ` ${split}%` : ""}</span>}
+                              {coProvider && <span>· Dr. {coProvider} {100 - split}%</span>}
                             </div>
                           )}
                         </td>
